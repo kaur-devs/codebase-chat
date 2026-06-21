@@ -11,7 +11,7 @@ pgvector==0.3.6
 
 # AI / LLM
 litellm==1.72.4
-voyageai==0.3.2
+voyageai==0.4.1
 
 # Git operations
 GitPython==3.1.44
