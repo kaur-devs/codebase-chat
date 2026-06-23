@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # GitHub OAuth — required for auth flow
     github_client_id: str
     github_client_secret: str
-    github_redirect_uri: str = "http://localhost:8000/auth/callback"
+    github_redirect_uri: str = "http://localhost:5173/auth/callback"
 
     # JWT — required, must be set in env
     jwt_secret: str
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     encryption_key: str
 
     # LLM defaults
-    default_llm_model: str = "groq/llama-3.1-70b-versatile"
+    default_llm_model: str = "groq/llama-3.3-70b-versatile"
     embedding_model: str = "voyage-code-3"
     embedding_dimension: int = 1024
 
