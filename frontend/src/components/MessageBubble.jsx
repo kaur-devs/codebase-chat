@@ -74,7 +74,7 @@ export default function MessageBubble({ message }) {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="prose prose-invert prose-sm max-w-none text-zinc-300 [&>p]:leading-relaxed">
+            <div className="prose prose-invert prose-sm max-w-none text-zinc-300 [&>p]:leading-relaxed [&>ul]:space-y-1 [&>ol]:space-y-1 [&_pre]:whitespace-pre-wrap">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
