@@ -2,6 +2,9 @@
 
 Chat with any GitHub repository. Paste a repo URL, and ask questions about the code in natural language — get answers with source citations, file references, and line numbers.
 
+# Deployed Link 
+https://codebase-chat-vert.vercel.app/
+
 ## How it works
 
 1. **Clone & Parse** — Clones the repo, parses code files using AST-aware chunking (splits at function/class boundaries, not arbitrary token counts)
