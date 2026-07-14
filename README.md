@@ -111,7 +111,7 @@ codebase-chat/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # UI components (ChatPanel, Sidebar, FileTree, etc.)
+│   │   ├── components/     # UI components 
 │   │   ├── pages/          # Route pages (Home, Login, AuthCallback)
 │   │   ├── hooks/          # Custom hooks (useAuth, useChat)
 │   │   └── lib/            # API client with SSE streaming
