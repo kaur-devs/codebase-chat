@@ -99,7 +99,7 @@ async def index_repo(
     await db.commit()
 
     code_texts = [c["code_text"] for c in all_chunks]
-    embeddings = embed_texts(code_texts)
+    embeddings, stats = embed_texts(code_texts)
 
     await store_embeddings(db, chunk_ids, embeddings)
 
@@ -114,6 +114,11 @@ async def index_repo(
         "file_count": repo.file_count,
         "chunk_count": repo.chunk_count,
         "status": repo.status,
+        "embedding_stats": {
+            "batches": stats.batches_processed,
+            "retries": stats.retries,
+            "elapsed_seconds": round(stats.elapsed_seconds, 1),
+        },
     }
 
 
