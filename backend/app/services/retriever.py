@@ -70,9 +70,10 @@ async def retrieve_context(
     db: AsyncSession,
     repo_id: int,
     question: str,
+    limit: int = 8,
 ) -> dict:
     query_embedding = embed_query(question)
-    similar_chunks = await search_similar_chunks(db, repo_id, query_embedding, limit=8)
+    similar_chunks = await search_similar_chunks(db, repo_id, query_embedding, limit=limit)
 
     repo = await db.get(Repo, repo_id)
     if not repo:
@@ -109,10 +110,13 @@ async def retrieve_context(
             "similarity": round(chunk.get("similarity", 0), 3),
         })
 
+    mean_similarity = sum(c.get("similarity", 0) for c in similar_chunks) / len(similar_chunks)
+
     return {
-        "chunks": similar_chunks,
-        "related_chunks": related_chunks[:5],
+        "primary_chunks": similar_chunks,
+        "linked_chunks": related_chunks[:5],
         "sources": sources,
         "readme": repo.readme_content,
         "file_tree": repo.file_tree,
+        "mean_similarity": round(mean_similarity, 3),
     }
