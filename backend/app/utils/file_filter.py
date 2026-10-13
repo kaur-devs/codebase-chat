@@ -16,12 +16,14 @@ SKIP_EXTENSIONS = {
     ".exe", ".dll", ".so", ".dylib", ".bin",
     ".woff", ".woff2", ".ttf", ".eot", ".otf",
     ".pyc", ".pyo", ".class", ".o",
+    ".ipynb", ".pkl", ".joblib", ".h5", ".onnx",
     ".lock", ".sum",
     ".min.js", ".min.css",
 }
 
 CODE_EXTENSIONS = {
     ".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".rb",
+    ".vue", ".svelte", ".astro", ".elm", ".ex", ".exs",
     ".java", ".kt", ".swift", ".c", ".cpp", ".h", ".hpp",
     ".cs", ".php", ".lua", ".r", ".scala", ".dart",
     ".html", ".css", ".scss", ".sass", ".less",
@@ -58,6 +60,18 @@ def is_file_too_large(filepath: str) -> bool:
     return os.path.getsize(filepath) > MAX_FILE_SIZE_BYTES
 
 
+def is_hidden(filepath: str) -> bool:
+    return any(part.startswith(".") for part in Path(filepath).parts)
+
+
+def read_file_safely(filepath: str) -> str | None:
+    if is_file_too_large(filepath):
+        return None
+
+    handle = open(filepath, "r", encoding="utf-8", errors="ignore")
+    return handle.read()
+
+
 def get_language(filepath: str) -> str:
     ext_map = {
         ".py": "python", ".js": "javascript", ".jsx": "javascript",
@@ -87,13 +101,11 @@ def collect_code_files(repo_path: str) -> list[dict]:
 
             if not should_include_file(filepath):
                 continue
-            if is_file_too_large(filepath):
+            if is_hidden(rel_path):
                 continue
 
-            try:
-                with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-            except (OSError, UnicodeDecodeError):
+            content = read_file_safely(filepath)
+            if content is None:
                 continue
 
             files.append({
