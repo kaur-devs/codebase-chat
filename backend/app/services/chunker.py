@@ -33,7 +33,7 @@ def chunk_python_file(content: str, file_path: str) -> list[dict]:
                 "line_start": start,
                 "line_end": end,
                 "language": "python",
-                "code_text": code,
+                "content": code,
             })
 
             for line_num in range(start, end + 1):
@@ -58,7 +58,7 @@ def chunk_python_file(content: str, file_path: str) -> list[dict]:
                     "line_start": start,
                     "line_end": end,
                     "language": "python",
-                    "code_text": code,
+                    "content": code,
                 })
 
             for line_num in range(start, end + 1):
@@ -75,7 +75,7 @@ def chunk_python_file(content: str, file_path: str) -> list[dict]:
                 "line_start": sorted_lines[0],
                 "line_end": sorted_lines[-1],
                 "language": "python",
-                "code_text": module_code,
+                "content": module_code,
             })
 
     return chunks
@@ -101,7 +101,7 @@ def _fallback_chunk(content: str, file_path: str, language: str) -> list[dict]:
             "line_start": start_idx + 1,
             "line_end": end_idx,
             "language": language,
-            "code_text": code,
+            "content": code,
         })
 
         if end_idx >= len(lines):
