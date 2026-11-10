@@ -75,7 +75,7 @@ async def retrieve_context(
     similar_chunks = await search_similar_chunks(db, repo_id, query_embedding, limit=8)
 
     total_similarity = sum(c.get("similarity", 0) for c in similar_chunks)
-    average_similarity = round(total_similarity / len(similar_chunks), 3)
+    average_similarity = round(total_similarity / len(similar_chunks), 3) if similar_chunks else 0.0
 
     repo = await db.get(Repo, repo_id)
     if not repo:
