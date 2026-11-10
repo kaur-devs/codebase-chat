@@ -74,6 +74,9 @@ async def retrieve_context(
     query_embedding = embed_query(question)
     similar_chunks = await search_similar_chunks(db, repo_id, query_embedding, limit=8)
 
+    total_similarity = sum(c.get("similarity", 0) for c in similar_chunks)
+    average_similarity = round(total_similarity / len(similar_chunks), 3)
+
     repo = await db.get(Repo, repo_id)
     if not repo:
         raise ValueError("Repository not found")
@@ -111,6 +114,7 @@ async def retrieve_context(
 
     return {
         "chunks": similar_chunks,
+        "average_similarity": average_similarity,
         "related_chunks": related_chunks[:5],
         "sources": sources,
         "readme": repo.readme_content,
