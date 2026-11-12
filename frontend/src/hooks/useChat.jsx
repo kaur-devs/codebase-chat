@@ -8,7 +8,7 @@ export function useChat() {
   const cancelRef = useRef(null);
 
   const sendMessage = useCallback(
-    (repoId, question) => {
+    (repoId, question, minSimilarity) => {
       const userMsg = { role: 'user', content: question };
       setMessages((prev) => [...prev, userMsg]);
       setIsStreaming(true);
@@ -17,7 +17,12 @@ export function useChat() {
       setMessages((prev) => [...prev, assistantMsg]);
 
       const cancel = streamChat(
-        { repo_id: repoId, question, conversation_id: conversationId },
+        {
+          repo_id: repoId,
+          question,
+          conversation_id: conversationId,
+          min_similarity: minSimilarity,
+        },
         (token) => {
           setMessages((prev) => {
             const updated = [...prev];
