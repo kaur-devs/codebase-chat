@@ -12,7 +12,7 @@ from app.models.repo import Repo
 from app.models.user import User
 from app.routers.auth import get_current_user
 from app.services.llm import stream_chat_response
-from app.services.retriever import retrieve_context
+from app.services.retriever import DEFAULT_MIN_SIMILARITY, retrieve_context
 from app.utils.crypto import decrypt
 
 router = APIRouter()
@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
     repo_id: int
     question: str
     conversation_id: int | None = None
+    min_similarity: float | None = None
 
 
 @router.post("/")
@@ -63,7 +64,12 @@ async def chat(
         for m in reversed(history_rows)
     ]
 
-    context = await retrieve_context(db, request.repo_id, request.question)
+    context = await retrieve_context(
+        db,
+        request.repo_id,
+        request.question,
+        request.min_similarity or DEFAULT_MIN_SIMILARITY,
+    )
 
     user_message = Message(
         conversation_id=conversation.id,
