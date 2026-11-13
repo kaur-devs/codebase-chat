@@ -97,3 +97,28 @@ export function streamChat(body, onToken, onSources, onDone, onError) {
 
   return () => controller.abort();
 }
+
+export async function createShare(conversationId, ttlDays) {
+  return apiPost('/share/', { conversation_id: conversationId, ttl_days: ttlDays });
+}
+
+export async function revokeShare(token) {
+  return apiDelete(`/share/${encodeURIComponent(token)}`);
+}
+
+export async function listMyShares(page = 1) {
+  return apiGet(`/share/mine?page=${page}`);
+}
+
+export async function fetchSharedConversation(token) {
+  const res = await fetch(`${API_BASE}/share/public/${encodeURIComponent(token)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Could not load this conversation' }));
+    throw new Error(err.detail || 'Could not load this conversation');
+  }
+  return res.json();
+}
+
+export async function exportConversation(conversationId) {
+  return apiGet(`/share/export/${conversationId}`);
+}

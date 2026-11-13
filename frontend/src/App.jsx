@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
+import SharedConversation from './pages/SharedConversation';
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -35,6 +36,7 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/shared/:token" element={<SharedConversation />} />
             <Route
               path="/"
               element={

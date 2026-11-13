@@ -13,6 +13,7 @@ from app.models.user import User
 from app.routers.auth import get_current_user
 from app.services.llm import stream_chat_response
 from app.services.retriever import DEFAULT_MIN_SIMILARITY, retrieve_context
+from app.services.usage import has_quota_left, record_question
 from app.utils.crypto import decrypt
 
 router = APIRouter()
@@ -36,6 +37,11 @@ async def chat(
         raise HTTPException(status_code=404, detail="Repository not found")
     if repo.status != "ready":
         raise HTTPException(status_code=400, detail="Repository is not ready yet")
+
+    if not await has_quota_left(db, user.id, request.repo_id):
+        raise HTTPException(
+            status_code=429, detail="Monthly question limit reached for this repository"
+        )
 
     if request.conversation_id:
         conversation = await db.get(Conversation, request.conversation_id)
@@ -103,6 +109,10 @@ async def chat(
             yield f"data: {json.dumps({'type': 'token', 'data': token})}\n\n"
 
         assistant_content = "".join(full_response)
+
+        tokens_used = len(assistant_content)
+        await record_question(db, request.repo_id, user.id, tokens_used)
+
         assistant_message = Message(
             conversation_id=conversation.id,
             role="assistant",

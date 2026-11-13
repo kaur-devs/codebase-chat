@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 # Tuned by hand against the eval questions; overridable per request.
 DEFAULT_MIN_SIMILARITY = 0.35
 
+# How many imported-but-not-retrieved files to attach to the prompt.
+MAX_LINKED_CHUNKS = 5
+
 
 def parse_imports_python(code: str) -> list[str]:
     imports = []
@@ -122,11 +125,11 @@ async def retrieve_context(
             if related not in retrieved_files:
                 related_files.add(related)
 
-    related_chunks = []
+    linked_chunks = []
     if related_files:
         for chunk in all_chunks:
             if chunk["file_path"] in related_files:
-                related_chunks.append(chunk)
+                linked_chunks.append(chunk)
 
     sources = []
     for chunk in similar_chunks:
@@ -141,7 +144,7 @@ async def retrieve_context(
 
     return {
         "chunks": similar_chunks,
-        "related_chunks": related_chunks[:5],
+        "linked_chunks": linked_chunks[:MAX_LINKED_CHUNKS],
         "sources": sources,
         "average_similarity": round(average_similarity, 3),
         "readme": repo.readme_content,
