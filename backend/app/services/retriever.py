@@ -1,6 +1,7 @@
 import json
 import re
 
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -71,7 +72,9 @@ async def retrieve_context(
     repo_id: int,
     question: str,
 ) -> dict:
-    query_embedding = embed_query(question)
+    # embed_query blocks (network call, plus a possible rate-limit wait), so it
+    # must not run on the event loop.
+    query_embedding = await run_in_threadpool(embed_query, question)
     similar_chunks = await search_similar_chunks(db, repo_id, query_embedding, limit=8)
 
     repo = await db.get(Repo, repo_id)

@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     embedding_model: str = "voyage-code-3"
     embedding_dimension: int = 1024
 
+    # Voyage AI rate limits. These are the limits for an account with NO payment
+    # method on file; the API reports them in an x-api-warning header. Adding a
+    # payment method raises them by orders of magnitude (the 200M free tokens
+    # still apply), so if indexing is slow, raise these rather than changing code.
+    voyage_requests_per_minute: int = 3
+    voyage_tokens_per_minute: int = 10_000
+    # Per-request ceilings. Keep batch tokens under tokens_per_minute divided by
+    # requests_per_minute so a single batch can never starve the minute's budget.
+    voyage_max_batch_tokens: int = 3_000
+    voyage_max_batch_items: int = 128
+
     # Repo limits
     max_repo_files: int = 500
     max_repo_size_mb: int = 50

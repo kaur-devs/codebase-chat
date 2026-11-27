@@ -68,6 +68,17 @@ You'll need:
 - **Supabase** project → connection string ([supabase.com](https://supabase.com))
 - **Groq** API key → free at [console.groq.com](https://console.groq.com)
 - **Voyage AI** API key → free at [dash.voyageai.com](https://dash.voyageai.com)
+
+> **Indexing speed depends on your Voyage rate limit.** An account with no payment
+> method is capped at 3 requests/min and 10,000 tokens/min, which puts a hard floor
+> on indexing time: roughly one minute per 10,000 tokens of code, so a 1,600-chunk
+> repo takes about half an hour no matter how it is batched. Adding a payment method
+> raises the cap by orders of magnitude and the 200M free tokens still apply, so it
+> is usually free. After adding one, raise `voyage_requests_per_minute` and
+> `voyage_tokens_per_minute` in `backend/app/config.py`.
+>
+> If an index does fail partway through, progress is saved. Resume it with
+> `POST /repos/{id}/reindex`, which embeds only the chunks still missing a vector.
 - **GitHub OAuth App** → register at [github.com/settings/developers](https://github.com/settings/developers)
 
 Run migrations:

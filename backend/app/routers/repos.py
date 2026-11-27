@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -13,7 +13,7 @@ from app.models.user import User
 from app.routers.auth import get_current_user
 from app.services.chunker import chunk_file
 from app.services.cloner import clone_and_extract
-from app.services.embedder import embed_texts, store_embeddings
+from app.services.indexer import embed_pending_chunks
 from app.utils.crypto import decrypt
 
 logger = logging.getLogger(__name__)
@@ -87,10 +87,9 @@ async def index_repo(
             )
             all_chunks.extend(file_chunks)
 
-        chunk_ids = []
-        for chunk_data in all_chunks:
-            chunk = Chunk(
-                repo_id=repo.id,
+        db.add_all([
+            Chunk(
+                repo_id=repo_id,
                 file_path=chunk_data["file_path"],
                 function_name=chunk_data.get("function_name"),
                 class_name=chunk_data.get("class_name"),
@@ -99,20 +98,14 @@ async def index_repo(
                 language=chunk_data["language"],
                 code_text=chunk_data["code_text"],
             )
-            db.add(chunk)
-            await db.flush()
-            chunk_ids.append(chunk.id)
-
+            for chunk_data in all_chunks
+        ])
         await db.commit()
 
-        code_texts = [c["code_text"] for c in all_chunks]
-        embeddings = await run_in_threadpool(embed_texts, code_texts)
-
-        await store_embeddings(db, chunk_ids, embeddings)
-
-        repo.chunk_count = len(all_chunks)
-        repo.status = "ready"
-        await db.commit()
+        # Commits per batch, so a run that dies partway can be resumed with
+        # POST /repos/{id}/reindex instead of re-cloning and re-chunking.
+        await embed_pending_chunks(db, repo_id)
+        await db.refresh(repo)
     except Exception:
         logger.exception("Indexing failed for repo %s (%s)", repo_id, request.url)
         await db.rollback()
@@ -122,7 +115,10 @@ async def index_repo(
         await db.commit()
         raise HTTPException(
             status_code=500,
-            detail="Indexing failed partway through. Remove the repository and try again.",
+            detail=(
+                "Indexing failed partway through. Progress was saved; "
+                "retry with POST /repos/{id}/reindex to resume."
+            ),
         )
 
     return {
@@ -133,6 +129,43 @@ async def index_repo(
         "chunk_count": repo.chunk_count,
         "status": repo.status,
     }
+
+
+@router.post("/{repo_id}/reindex")
+async def reindex_repo(
+    repo_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Resume embedding for a repo whose indexing failed partway through.
+
+    Picks up only the chunks still missing a vector, so nothing is re-cloned,
+    re-chunked, or re-embedded.
+    """
+    repo = await db.get(Repo, repo_id)
+    if not repo or repo.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    pending = await db.execute(
+        text("SELECT count(*) FROM chunks WHERE repo_id = :repo_id AND embedding IS NULL"),
+        {"repo_id": repo_id},
+    )
+    if (pending.scalar() or 0) == 0 and repo.status == "ready":
+        return {"id": repo_id, "status": "ready", "embedded": 0, "detail": "Already fully indexed"}
+
+    await db.execute(update(Repo).where(Repo.id == repo_id).values(status="indexing"))
+    await db.commit()
+
+    try:
+        result = await embed_pending_chunks(db, repo_id)
+    except Exception:
+        logger.exception("Reindex failed for repo %s", repo_id)
+        await db.rollback()
+        await db.execute(update(Repo).where(Repo.id == repo_id).values(status="failed"))
+        await db.commit()
+        raise HTTPException(status_code=500, detail="Reindexing failed. Try again.")
+
+    return {"id": repo_id, **result}
 
 
 @router.get("/")
