@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     encryption_key: str
 
     # LLM defaults
-    default_llm_model: str = "groq/llama-3.3-70b-versatile"
+    default_llm_model: str = "groq/openai/gpt-oss-120b"
     embedding_model: str = "voyage-code-3"
     embedding_dimension: int = 1024
 

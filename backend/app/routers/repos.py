@@ -1,8 +1,10 @@
+import logging
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -13,6 +15,8 @@ from app.services.chunker import chunk_file
 from app.services.cloner import clone_and_extract
 from app.services.embedder import embed_texts, store_embeddings
 from app.utils.crypto import decrypt
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -50,7 +54,7 @@ async def index_repo(
         github_token = decrypt(user.access_token_encrypted)
 
     try:
-        clone_result = clone_and_extract(request.url, github_token)
+        clone_result = await run_in_threadpool(clone_and_extract, request.url, github_token)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
@@ -71,41 +75,55 @@ async def index_repo(
     await db.commit()
     await db.refresh(repo)
 
-    all_chunks = []
-    for file_info in clone_result.files:
-        file_chunks = chunk_file(
-            content=file_info["content"],
-            file_path=file_info["path"],
-            language=file_info["language"],
+    repo_id = repo.id
+
+    try:
+        all_chunks = []
+        for file_info in clone_result.files:
+            file_chunks = chunk_file(
+                content=file_info["content"],
+                file_path=file_info["path"],
+                language=file_info["language"],
+            )
+            all_chunks.extend(file_chunks)
+
+        chunk_ids = []
+        for chunk_data in all_chunks:
+            chunk = Chunk(
+                repo_id=repo.id,
+                file_path=chunk_data["file_path"],
+                function_name=chunk_data.get("function_name"),
+                class_name=chunk_data.get("class_name"),
+                line_start=chunk_data["line_start"],
+                line_end=chunk_data["line_end"],
+                language=chunk_data["language"],
+                code_text=chunk_data["code_text"],
+            )
+            db.add(chunk)
+            await db.flush()
+            chunk_ids.append(chunk.id)
+
+        await db.commit()
+
+        code_texts = [c["code_text"] for c in all_chunks]
+        embeddings = await run_in_threadpool(embed_texts, code_texts)
+
+        await store_embeddings(db, chunk_ids, embeddings)
+
+        repo.chunk_count = len(all_chunks)
+        repo.status = "ready"
+        await db.commit()
+    except Exception:
+        logger.exception("Indexing failed for repo %s (%s)", repo_id, request.url)
+        await db.rollback()
+        await db.execute(
+            update(Repo).where(Repo.id == repo_id).values(status="failed")
         )
-        all_chunks.extend(file_chunks)
-
-    chunk_ids = []
-    for chunk_data in all_chunks:
-        chunk = Chunk(
-            repo_id=repo.id,
-            file_path=chunk_data["file_path"],
-            function_name=chunk_data.get("function_name"),
-            class_name=chunk_data.get("class_name"),
-            line_start=chunk_data["line_start"],
-            line_end=chunk_data["line_end"],
-            language=chunk_data["language"],
-            code_text=chunk_data["code_text"],
+        await db.commit()
+        raise HTTPException(
+            status_code=500,
+            detail="Indexing failed partway through. Remove the repository and try again.",
         )
-        db.add(chunk)
-        await db.flush()
-        chunk_ids.append(chunk.id)
-
-    await db.commit()
-
-    code_texts = [c["code_text"] for c in all_chunks]
-    embeddings = embed_texts(code_texts)
-
-    await store_embeddings(db, chunk_ids, embeddings)
-
-    repo.chunk_count = len(all_chunks)
-    repo.status = "ready"
-    await db.commit()
 
     return {
         "id": repo.id,

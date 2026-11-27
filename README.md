@@ -18,7 +18,7 @@ https://codebase-chat-vert.vercel.app/
 | Frontend | React, Vite, Tailwind CSS |
 | Backend | FastAPI, SQLAlchemy, Alembic |
 | Database | PostgreSQL + pgvector (Supabase) |
-| LLM | Llama 3.1 70B via Groq (LiteLLM) |
+| LLM | GPT-OSS 120B via Groq (LiteLLM) |
 | Embeddings | Voyage `voyage-code-3` |
 | Auth | GitHub OAuth + JWT |
 | Deployment | Docker, Railway, Vercel |
